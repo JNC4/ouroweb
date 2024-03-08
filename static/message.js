@@ -1,27 +1,31 @@
-let ctx = c.getContext('2d')
 
-            let sentence = "Your sentence here";
-            let characterCount = sentence.replace(/\s/g, "").length;
-            let men = [];
-            for (let i = 0; i < characterCount; i++) {
-                men.push(new Man(/* Initial position */));
-        }
+let c = document.getElementById('c');
+let ctx = c.getContext('2d')
+            function random(min, max) {
+            return Math.random() * (max - min) + min;
+}
+function calculatePositions(numCharacters, canvasWidth, canvasHeight) {
+    let positions = [];
+    for (let i = 0; i < numCharacters; i++) {
+        // Calculate the position for the character
+        let position = {
+            x: canvasWidth / numCharacters * i,
+            y: canvasHeight / 2
+        };
+
+        // Add the position to the array of positions
+        positions.push(position);
+    }
+    return positions;
+}
+
+            let sentence = "Happy 6 month anniversary"; // replace with your sentence
+            let numCharacters = sentence.replace(/\s/g, "").length;
 
             let canvasWidth = c.width;
             let canvasHeight = c.height;
-            let positions = calculatePositions(characterCount, canvasWidth, canvasHeight);
+            let positions = calculatePositions(numCharacters, canvasWidth, canvasHeight);
 
-            men.forEach((man, idx) => {
-                man.walkTo(positions[idx]);
-                man.holdUpArms();
-            });
-
-            men.forEach((man, idx) => {
-                let letter = sentence.replace(/\s/g, "").charAt(idx);
-                man.displayLetter(letter);
-            });
-
-            const people = 200
             let time = 0
             let scale = cw = ch = 0
 
@@ -35,9 +39,10 @@ let ctx = c.getContext('2d')
                     this.posterSize = scale;
                     this.posterPadding = 5; //
                     this.body_h = random(scale / 2, scale * 2)
-
+                    this.head_y = this.y - this.body_h / 2;
                     this.leg = random(scale / 3, scale * 2)
                     this.arm = random(scale / 3, this.body_h / 2 + this.leg / 2)
+                    this.armY = this.y + this.arm; // arm's y position when down
 
                     this.appendage = random(0, 2)
 
@@ -58,20 +63,40 @@ let ctx = c.getContext('2d')
 
                     this.y += -this.body_h / 2 - this.leg
                 }
-                walkTo(position) {
-                    const speed = 1; // Adjust the speed as needed
-                    const dx = position.x - this.x;
-                    const dy = position.y - this.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    const vx = (dx / distance) * speed;
-                    const vy = (dy / distance) * speed;
-                    this.x += vx;
-                    this.y += vy;
-                    if (Math.abs(this.x - position.x) < speed && Math.abs(this.y - position.y) < speed) {
-                        this.x = position.x;
-                        this.y = position.y;
+                drawSquare(letter) {
+                    const squareSize = 30; // Adjust the size as needed
+                    const squareColor = '#fff'; // White color
+                
+                    // Draw the square
+                    ctx.fillStyle = squareColor;
+                    ctx.fillRect((this.x)-15, (this.armY - squareSize)-80, squareSize, squareSize);
+                
+                    // Draw the letter
+                    if (typeof letter === 'string') {
+                        ctx.fillStyle = '#000'; // Black color for the letter
+                        ctx.font = '20px Arial'; // Adjust the font size and family as needed
+                        ctx.fillText(letter, (this.x)-5, (this.armY - squareSize)-60); // Adjust the position as needed
+                    }
+                }
+                holdUpArms() {
+                    this.armY = this.head_y;
+                    this.armsUp = true;
+                }
+
+    // Method to display a letter on a white poster
+    displayLetter(letter) {
+        this.letter = letter;
+        // Draw the poster with the letter if arms are up and a letter is set
+        if (this.armsUp && this.letter) {
+            ctx.fillStyle = this.posterColor;
+            ctx.fillRect(this.x, this.armY - this.posterSize, this.posterSize, this.posterSize);
+    
+            // Draw the letter inside the poster
+            ctx.fillStyle = '#000';
+            ctx.font = `${this.posterSize - this.posterPadding}px Arial`;
+            ctx.fillText(this.letter, this.x + this.posterPadding / 2, this.armY - this.posterSize + this.posterSize - this.posterPadding / 2);
+        }
     }
-}
 
                 update() {
                     const move = (start, end, speed) => {
@@ -87,6 +112,7 @@ let ctx = c.getContext('2d')
                             ctx.fillStyle = '#0005'
                             fillRect(this.x, this.y + this.body_h / 2 + this.leg + this.leg_w / 4, (this.body_h + this.w) / 2, scale / 10)
                         }
+                        
                         const eye = value => {
                             ctx.fillStyle = '#fff'
                             fillRect(
@@ -99,13 +125,14 @@ let ctx = c.getContext('2d')
                             this.offset_y + this.eye_y * this.dist + this.y - this.body_h / 4, this.pupils, this.pupils)
                         }
                         const arm = value => {
-                            ctx.fillStyle = '#000'
+                            ctx.fillStyle = '#000';
                             fillRect(
-                            this.x + (this.arm_w / 2 + this.w / 2) * value,
-                            this.offset_y + this.y + this.arm / 2,
-                            this.arm_w,
-                            this.appendage ? this.arm_w : this.arm)
-                        }
+                                this.x + (this.arm_w / 2 + this.w / 2) * value,
+                                this.armY -80,
+                                this.arm_w,
+                                this.appendage ? this.arm_w : this.arm
+                            );
+                        };
                         const leg = (x, y, height, value) => {
                             ctx.fillStyle = '#000'
                             fillRect(
@@ -201,33 +228,23 @@ let ctx = c.getContext('2d')
                             }
                         }
                     }
-                    reactions()
+                    reactions();
+                    this.drawSquare();
                     const movement = _ => {
                         this.move_timer --
-
-                        if (this.move_timer == 0) {
-                            const value = random(0, 3)
-
-                            if (value) this.new_direction = random(-1, 2)
-                            else this.new_direction = 0
-                        }
-
+                    
                         if (this.move_timer < 0) {
                             this.offset_y = move(this.offset_y, 0, .1)
                             this.direction = move(this.direction, this.new_direction, .1)
                             if (this.new_direction) this.eye_x = move(this.eye_x, this.new_direction, .1)
-
+                    
                             if (this.offset_y == 0 && this.direction == this.new_direction) {
                                 this.move_timer = random(this.move_random.min, this.move_random.max)
                             }
                         }
                     }
                     movement()
-
-                    if (this.direction != 0) {
-                        this.offset_y += Math.cos(time * 20 / this.leg * scale / 10) * this.leg / 50
-                        this.x += (scale / 20 + this.leg / 99) * this.direction
-                    }
+                    this.drawSquare(sentence[this.position]);
                 }
             }
 
@@ -256,8 +273,6 @@ let ctx = c.getContext('2d')
             Man.prototype.move_timer = 0
             Man.prototype.move_random = {min: 20, max: 500}
 
-            let men = []
-
             function random(min, max, int = 1) {
                 const value = Math.random() * (max - min) + min
 
@@ -271,26 +286,15 @@ let ctx = c.getContext('2d')
             }
 
             function resize() {
-                c.width = cw = innerWidth
-                c.height = ch = innerHeight
-
-                scale = (cw + ch) / 72
-
-                reset()
-
-                men = []
-
-                for (let i = 0; i < people; i ++) men.push(new Man(-scale / 2, ch / 2 + Math.sin(i*i) * ch / 2))
-                men.sort((a, b) => (a.y + a.body_h / 2 + a.leg) - (b.y + b.body_h / 2 + b.leg))
+                c.width = cw = innerWidth;
+                c.height = ch = innerHeight;
+                
+                scale = (cw + ch) / 72;
+                
+                Man.prototype.posterSize = scale; // Set posterSize here
+                
+                reset();
             }
-
-            function start() {
-                addEventListener('resize', resize)
-                resize()
-
-                loop()
-            }
-
             function loop() {
                 ctx.clearRect(0, 0, c.width, c.height)
                 time += .2
@@ -301,8 +305,64 @@ let ctx = c.getContext('2d')
                     if (man.x > cw + scale / 2) man.x = -scale / 2
                     if (man.x < -scale / 2) man.x = cw + scale / 2
                 })
-
+                let positions = calculatePositions(numCharacters, canvasWidth, canvasHeight);
+                men.forEach((man, idx) => {
+                    man.targetPosition = positions[idx];
+    });
                 requestAnimationFrame(loop)
             }
 
-            start()
+            function start() {
+                addEventListener('resize', resize);
+                resize();
+                let sentence = "Happy 6 month anniversary";
+                let numCharacters = sentence.length; // Include spaces
+                let positions = calculatePositions(numCharacters, canvasWidth, canvasHeight);
+                men = [];
+                for (let i = 0; i < sentence.length; i++) {
+                    // Check if the character at the current position is a space
+                    if (sentence[i] !== ' ') {
+                        // Create a new "man" object
+                        let man = new Man(((positions[i].x)*4)+150, (positions[i].y)+350);
+            
+                        // Assign the "man" a position that corresponds to the position of the character in the sentence
+                        man.position = i;
+            
+                        // Add the "man" to the array of men
+                        men.push(man);
+                    }
+                }
+            
+                men.forEach((man, idx) => {
+                    man.holdUpArms();
+                });
+            
+                loop();
+            }
+            
+            document.addEventListener('DOMContentLoaded', (event) => {
+                document.getElementById('startButton').addEventListener('click', start);
+            
+                document.getElementById('goButton').addEventListener('click', function() {
+                    // Remove the canvas, the start button and the script
+                    document.getElementById('c').remove();
+                    document.getElementById('startButton').remove();
+                
+                    // Load the image gallery
+                    let gallery = document.createElement('div');
+                    gallery.id = 'gallery';
+                    document.body.appendChild(gallery);
+                
+                    // Fetch the list of image file names from the server
+                    fetch('/api/images')
+                        .then(response => response.json())
+                        .then(images => {
+                            // Loop through the image file names and create an img element for each one
+                            images.forEach(image => {
+                                let img = document.createElement('img');
+                                img.src = "/ouroboros/static/zerepic6m/" + image;
+                                gallery.appendChild(img);
+                            });
+                        });
+                });
+            });
